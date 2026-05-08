@@ -375,7 +375,7 @@ else:
         else:
             st.warning("No milestone data available. Run fetch_data.py to fetch milestones.")
         
-        fig.update_yaxes(range=[0, 100])
+        fig.update_yaxes(range=[0, 100], fixedrange=False, autorange=False)
         fig.update_layout(height=500, legend=dict(
             orientation="v",
             yanchor="top",
