@@ -314,31 +314,52 @@ else:
             if not project_milestones.empty:
                 st.info(f"📍 Showing {len(project_milestones)} milestone markers for {selected_project}")
                 
-                # Add vertical lines for milestone start dates
-                for _, milestone in project_milestones.iterrows():
+                # Add vertical lines for milestone dates
+                for idx, milestone in project_milestones.iterrows():
                     if pd.notna(milestone.get('start_date')):
                         # Convert to datetime object
                         start_date = pd.to_datetime(milestone['start_date']).to_pydatetime()
-                        fig.add_vline(
+                        # Add vertical line for start date
+                        fig.add_shape(
+                            type="line",
+                            x0=start_date, x1=start_date,
+                            y0=0, y1=1,
+                            yref="paper",
+                            line=dict(color="green", width=2, dash="dash"),
+                            opacity=0.7
+                        )
+                        # Add annotation for start date
+                        fig.add_annotation(
                             x=start_date,
-                            line_dash="dash",
-                            line_color="green",
-                            opacity=0.7,
-                            annotation_text=f"Start: {milestone['phase']}",
-                            annotation_position="top"
+                            y=1,
+                            yref="paper",
+                            text=f"▶ {milestone['phase']}",
+                            showarrow=False,
+                            yshift=10,
+                            font=dict(size=9, color="green")
                         )
                     
-                    # Add vertical lines for milestone end dates
                     if pd.notna(milestone.get('end_date')):
                         # Convert to datetime object
                         end_date = pd.to_datetime(milestone['end_date']).to_pydatetime()
-                        fig.add_vline(
+                        # Add vertical line for end date
+                        fig.add_shape(
+                            type="line",
+                            x0=end_date, x1=end_date,
+                            y0=0, y1=1,
+                            yref="paper",
+                            line=dict(color="red", width=2, dash="dot"),
+                            opacity=0.7
+                        )
+                        # Add annotation for end date
+                        fig.add_annotation(
                             x=end_date,
-                            line_dash="dot",
-                            line_color="red",
-                            opacity=0.7,
-                            annotation_text=f"End: {milestone['phase']}",
-                            annotation_position="bottom"
+                            y=0,
+                            yref="paper",
+                            text=f"◀ {milestone['phase']}",
+                            showarrow=False,
+                            yshift=-10,
+                            font=dict(size=9, color="red")
                         )
             else:
                 st.warning(f"No milestones found for {selected_project}")
