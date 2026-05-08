@@ -317,8 +317,10 @@ else:
                 # Add vertical lines for milestone start dates
                 for _, milestone in project_milestones.iterrows():
                     if pd.notna(milestone.get('start_date')):
+                        # Convert to datetime if it's a string, then to timestamp
+                        start_date = pd.to_datetime(milestone['start_date'])
                         fig.add_vline(
-                            x=milestone['start_date'],
+                            x=start_date.strftime('%Y-%m-%d'),
                             line_dash="dash",
                             line_color="green",
                             opacity=0.7,
@@ -329,8 +331,10 @@ else:
                     
                     # Add vertical lines for milestone end dates
                     if pd.notna(milestone.get('end_date')):
+                        # Convert to datetime if it's a string, then to timestamp
+                        end_date = pd.to_datetime(milestone['end_date'])
                         fig.add_vline(
-                            x=milestone['end_date'],
+                            x=end_date.strftime('%Y-%m-%d'),
                             line_dash="dot",
                             line_color="red",
                             opacity=0.7,
