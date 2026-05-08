@@ -2,6 +2,8 @@
 
 A Streamlit dashboard for tracking and visualizing progress metrics from multiple Coda documents over time.
 
+🚀 **[View Live Demo](https://your-app-name.streamlit.app)** (Update this after deployment)
+
 ## Features
 
 - 📊 Fetch progress formulas from multiple Coda docs via API
@@ -95,6 +97,25 @@ The app stores data in CSV format:
 - The app tracks changes over time, so run it daily to build historical data
 - You can manually edit `progress_history.csv` if needed
 - Export data as CSV from the app for further analysis
+
+## Deployment to Streamlit Community Cloud
+
+### Quick Deploy
+
+1. **Push your code to GitHub** (see instructions below)
+2. **Go to** https://share.streamlit.io/
+3. **Click "New app"** and configure:
+   - Repository: `Carpentry-Plus-Inc/Metrics`
+   - Branch: `main`
+   - Main file: `coda-progress-tracker/app.py`
+4. **Add secrets** in Streamlit Cloud settings:
+   ```toml
+   CODA_API_TOKEN = "your_api_token"
+   DOC_IDS = "doc1,doc2,doc3"
+   ```
+5. **Deploy!**
+
+For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ## Troubleshooting
 

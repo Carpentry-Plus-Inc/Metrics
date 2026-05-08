@@ -8,7 +8,16 @@ import json
 import os
 from dotenv import load_dotenv
 
+# Load environment variables from .env file (local development)
 load_dotenv()
+
+# Helper function to get config from either .env or Streamlit secrets
+def get_config(key, default=''):
+    # Try Streamlit secrets first (for cloud deployment)
+    if hasattr(st, 'secrets') and key in st.secrets:
+        return st.secrets[key]
+    # Fall back to environment variables (for local development)
+    return os.getenv(key, default)
 
 st.set_page_config(page_title="Coda Progress Tracker", layout="wide")
 
@@ -74,9 +83,12 @@ def save_progress_data(data):
     """Append new data to CSV"""
     df = pd.DataFrame(data)
     
-    if os.path.exists(DATA_FILE):
-        existing_df = pd.read_csv(DATA_FILE)
-        df = pd.concat([existing_df, df], ignore_index=True)
+    if os.path.exists(DATA_FILE) and os.path.getsize(DATA_FILE) > 0:
+        try:
+            existing_df = pd.read_csv(DATA_FILE)
+            df = pd.concat([existing_df, df], ignore_index=True)
+        except pd.errors.EmptyDataError:
+            pass
     
     df.to_csv(DATA_FILE, index=False)
     return df
@@ -92,8 +104,8 @@ def load_progress_history():
 with st.sidebar:
     st.header("⚙️ Configuration")
     
-    env_api_token = os.getenv('CODA_API_TOKEN', '')
-    env_doc_ids = os.getenv('DOC_IDS', '')
+    env_api_token = get_config('CODA_API_TOKEN', '')
+    env_doc_ids = get_config('DOC_IDS', '')
     
     api_token = st.text_input(
         "Coda API Token", 
