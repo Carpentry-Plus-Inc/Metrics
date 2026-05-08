@@ -317,30 +317,28 @@ else:
                 # Add vertical lines for milestone start dates
                 for _, milestone in project_milestones.iterrows():
                     if pd.notna(milestone.get('start_date')):
-                        # Convert to datetime if it's a string, then to timestamp
-                        start_date = pd.to_datetime(milestone['start_date'])
+                        # Convert to datetime object
+                        start_date = pd.to_datetime(milestone['start_date']).to_pydatetime()
                         fig.add_vline(
-                            x=start_date.strftime('%Y-%m-%d'),
+                            x=start_date,
                             line_dash="dash",
                             line_color="green",
                             opacity=0.7,
-                            annotation_text=f"▶ {milestone['phase']}",
-                            annotation_position="top left",
-                            annotation_font_size=10
+                            annotation_text=f"Start: {milestone['phase']}",
+                            annotation_position="top"
                         )
                     
                     # Add vertical lines for milestone end dates
                     if pd.notna(milestone.get('end_date')):
-                        # Convert to datetime if it's a string, then to timestamp
-                        end_date = pd.to_datetime(milestone['end_date'])
+                        # Convert to datetime object
+                        end_date = pd.to_datetime(milestone['end_date']).to_pydatetime()
                         fig.add_vline(
-                            x=end_date.strftime('%Y-%m-%d'),
+                            x=end_date,
                             line_dash="dot",
                             line_color="red",
                             opacity=0.7,
-                            annotation_text=f"◀ {milestone['phase']}",
-                            annotation_position="top right",
-                            annotation_font_size=10
+                            annotation_text=f"End: {milestone['phase']}",
+                            annotation_position="bottom"
                         )
             else:
                 st.warning(f"No milestones found for {selected_project}")
