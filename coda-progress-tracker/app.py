@@ -101,6 +101,19 @@ def load_progress_history():
         return df
     return pd.DataFrame()
 
+def load_milestones():
+    """Load milestone data"""
+    milestones_file = "milestones.csv"
+    if os.path.exists(milestones_file):
+        df = pd.read_csv(milestones_file)
+        # Convert date columns to datetime
+        if 'start_date' in df.columns:
+            df['start_date'] = pd.to_datetime(df['start_date'], errors='coerce')
+        if 'end_date' in df.columns:
+            df['end_date'] = pd.to_datetime(df['end_date'], errors='coerce')
+        return df
+    return pd.DataFrame()
+
 with st.sidebar:
     st.header("⚙️ Configuration")
     
@@ -189,6 +202,44 @@ else:
             labels={'value': 'Progress (%)', 'timestamp': 'Date', 'metric': 'Metric'},
             markers=True
         )
+        
+        # Load and add milestone markers
+        milestones_df = load_milestones()
+        
+        if not milestones_df.empty:
+            project_milestones = milestones_df[milestones_df['doc_name'] == selected_project]
+            
+            if not project_milestones.empty:
+                st.info(f"📍 Showing {len(project_milestones)} milestone markers for {selected_project}")
+                
+                # Add vertical lines for milestone start dates
+                for _, milestone in project_milestones.iterrows():
+                    if pd.notna(milestone.get('start_date')):
+                        fig.add_vline(
+                            x=milestone['start_date'],
+                            line_dash="dash",
+                            line_color="green",
+                            opacity=0.7,
+                            annotation_text=f"▶ {milestone['phase']}",
+                            annotation_position="top left",
+                            annotation_font_size=10
+                        )
+                    
+                    # Add vertical lines for milestone end dates
+                    if pd.notna(milestone.get('end_date')):
+                        fig.add_vline(
+                            x=milestone['end_date'],
+                            line_dash="dot",
+                            line_color="red",
+                            opacity=0.7,
+                            annotation_text=f"◀ {milestone['phase']}",
+                            annotation_position="top right",
+                            annotation_font_size=10
+                        )
+            else:
+                st.warning(f"No milestones found for {selected_project}")
+        else:
+            st.warning("No milestone data available. Run fetch_data.py to fetch milestones.")
         
         fig.update_yaxes(range=[0, 100])
         fig.update_layout(height=500, legend=dict(

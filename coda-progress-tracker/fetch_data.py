@@ -8,6 +8,90 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATA_FILE = "progress_history.csv"
+MILESTONES_FILE = "milestones.csv"
+
+def fetch_coda_milestones(doc_id, api_token):
+    """Fetch milestone data from Project Milestones table in a Coda doc"""
+    headers = {'Authorization': f'Bearer {api_token}'}
+    
+    try:
+        # Get doc name
+        doc_response = requests.get(
+            f'https://coda.io/apis/v1/docs/{doc_id}',
+            headers=headers
+        )
+        doc_name = doc_response.json().get('name', 'Unknown Doc')
+        
+        # List all tables to find Project Milestones
+        tables_response = requests.get(
+            f'https://coda.io/apis/v1/docs/{doc_id}/tables',
+            headers=headers
+        )
+        
+        tables = tables_response.json().get('items', [])
+        milestone_table = None
+        
+        # Find the Project Milestones table
+        for table in tables:
+            if 'milestone' in table['name'].lower():
+                milestone_table = table
+                break
+        
+        if not milestone_table:
+            print(f"  No Project Milestones table found in {doc_name}")
+            return []
+        
+        table_id = milestone_table['id']
+        
+        # Fetch rows from the milestones table
+        rows_response = requests.get(
+            f'https://coda.io/apis/v1/docs/{doc_id}/tables/{table_id}/rows',
+            headers=headers
+        )
+        
+        rows = rows_response.json().get('items', [])
+        
+        milestones = []
+        for row in rows:
+            # Phase name is in the row's 'name' field
+            phase = row.get('name', 'Unknown Phase')
+            
+            values = row.get('values', {})
+            
+            # Extract start date and end date from values
+            # Values are keyed by column IDs, we need to find date columns
+            start_date = None
+            end_date = None
+            
+            # Get all values as a list to find dates
+            for col_id, value in values.items():
+                # Skip if it's a complex object (like row reference)
+                if isinstance(value, dict) and '@type' in value:
+                    continue
+                
+                # Check if it's a date string (ISO format)
+                if isinstance(value, str) and 'T' in value and ':' in value:
+                    # First date found is likely start date
+                    if start_date is None:
+                        start_date = value
+                    # Second date found is likely end date
+                    elif end_date is None:
+                        end_date = value
+            
+            if phase and (start_date or end_date):
+                milestones.append({
+                    'doc_name': doc_name,
+                    'phase': phase,
+                    'start_date': start_date,
+                    'end_date': end_date
+                })
+        
+        print(f"  Found {len(milestones)} milestones")
+        return milestones
+        
+    except Exception as e:
+        print(f"Error fetching milestones from doc {doc_id}: {str(e)}")
+        return []
 
 def fetch_coda_formulas(doc_id, api_token):
     """Fetch all formulas from a Coda doc"""
@@ -77,6 +161,12 @@ def save_progress_data(data):
     df.to_csv(DATA_FILE, index=False)
     print(f"Saved {len(data)} records to {DATA_FILE}")
 
+def save_milestones_data(data):
+    """Save milestone data to CSV (overwrite each time)"""
+    df = pd.DataFrame(data)
+    df.to_csv(MILESTONES_FILE, index=False)
+    print(f"Saved {len(data)} milestones to {MILESTONES_FILE}")
+
 if __name__ == "__main__":
     # Try to get from .env file first
     api_token = os.getenv('CODA_API_TOKEN')
@@ -103,14 +193,28 @@ if __name__ == "__main__":
     print(f"Fetching data from {len(doc_ids)} docs...")
     
     all_data = []
+    all_milestones = []
+    
     for doc_id in doc_ids:
         print(f"Fetching from doc: {doc_id}")
+        
+        # Fetch progress metrics
         data = fetch_coda_formulas(doc_id, api_token)
         all_data.extend(data)
         print(f"  Found {len(data)} progress metrics")
+        
+        # Fetch milestones
+        milestones = fetch_coda_milestones(doc_id, api_token)
+        all_milestones.extend(milestones)
     
     if all_data:
         save_progress_data(all_data)
-        print(f"\n✅ Successfully fetched {len(all_data)} total metrics")
+        print(f"✅ Successfully fetched {len(all_data)} total metrics")
     else:
-        print("\n⚠️ No progress metrics found")
+        print("⚠️ No progress data fetched")
+    
+    if all_milestones:
+        save_milestones_data(all_milestones)
+        print(f"✅ Successfully fetched {len(all_milestones)} total milestones")
+    else:
+        print("⚠️ No milestone data fetched")
