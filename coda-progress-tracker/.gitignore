@@ -10,8 +10,7 @@ __pycache__/
 .Python
 
 # Data files
-progress_history.csv
-milestones.csv
+# CSV files are now tracked in Git for persistent storage
 
 # IDE
 .vscode/
