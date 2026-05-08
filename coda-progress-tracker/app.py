@@ -295,6 +295,12 @@ else:
     if selected_project:
         filtered_df = df[df['doc_name'] == selected_project]
         
+        # Calculate date range: one month centered on most recent data point
+        from datetime import timedelta
+        most_recent_date = filtered_df['timestamp'].max()
+        date_range_start = most_recent_date - timedelta(days=15)
+        date_range_end = most_recent_date + timedelta(days=15)
+        
         fig = px.line(
             filtered_df,
             x='timestamp',
@@ -304,6 +310,9 @@ else:
             labels={'value': 'Progress (%)', 'timestamp': 'Date', 'metric': 'Metric'},
             markers=True
         )
+        
+        # Set x-axis range to one month centered on most recent data
+        fig.update_xaxes(range=[date_range_start, date_range_end])
         
         # Load and add milestone markers
         milestones_df = load_milestones()
