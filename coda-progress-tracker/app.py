@@ -284,7 +284,86 @@ else:
     display_df['value'] = display_df['value'].round(2)
     st.dataframe(display_df, use_container_width=True, hide_index=True)
     
-    st.header("📊 Progress Over Time")
+    # Matrix Mini Bar Chart - Project Overview
+    st.header("📊 Project Progress Overview")
+    
+    # Prepare data for matrix chart
+    projects = latest_df['doc_name'].unique().tolist()
+    matrix_data = []
+    
+    for idx, project in enumerate(projects):
+        project_metrics = latest_df[latest_df['doc_name'] == project]
+        values = project_metrics['value'].tolist()
+        matrix_data.append({
+            "name": project,
+            "value": values,
+            "height": 20
+        })
+    
+    # Get all unique metrics for the legend
+    all_metrics = latest_df['metric'].unique().tolist()
+    
+    # Create matrix mini bar chart option
+    matrix_option = {
+        "tooltip": {
+            "trigger": "item",
+            "formatter": lambda params: f"{params['name']}: {params['value']}%"
+        },
+        "grid": {
+            "left": "25%",
+            "right": "10%",
+            "top": "5%",
+            "bottom": "5%"
+        },
+        "xAxis": {
+            "type": "value",
+            "max": 100,
+            "splitLine": {"show": False},
+            "axisLabel": {"formatter": "{value}%"}
+        },
+        "yAxis": {
+            "type": "category",
+            "data": projects,
+            "axisLine": {"show": False},
+            "axisTick": {"show": False},
+            "splitLine": {"show": False}
+        },
+        "series": []
+    }
+    
+    # Add a series for each metric
+    for metric_idx, metric in enumerate(all_metrics):
+        series_data = []
+        for project_idx, project in enumerate(projects):
+            project_metric = latest_df[(latest_df['doc_name'] == project) & (latest_df['metric'] == metric)]
+            if not project_metric.empty:
+                value = project_metric['value'].iloc[0]
+                series_data.append([value, project_idx])
+            else:
+                series_data.append([0, project_idx])
+        
+        matrix_option["series"].append({
+            "name": metric,
+            "type": "bar",
+            "stack": "total",
+            "data": series_data,
+            "label": {
+                "show": True,
+                "position": "inside",
+                "formatter": "{c}%",
+                "fontSize": 10
+            }
+        })
+    
+    # Add legend
+    matrix_option["legend"] = {
+        "data": all_metrics,
+        "top": "bottom"
+    }
+    
+    st_echarts(options=matrix_option, height="300px")
+    
+    st.header("📈 Progress Over Time")
     
     project_options = df['doc_name'].unique().tolist()
     selected_project = st.selectbox(
