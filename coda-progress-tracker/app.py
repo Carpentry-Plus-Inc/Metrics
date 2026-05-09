@@ -287,82 +287,69 @@ else:
     # Matrix Mini Bar Chart - Project Overview
     st.header("📊 Project Progress Overview")
     
-    # Prepare data for matrix chart
+    # Prepare data for matrix chart - create y-axis categories for each project-metric combination
     projects = latest_df['doc_name'].unique().tolist()
-    matrix_data = []
-    
-    for idx, project in enumerate(projects):
-        project_metrics = latest_df[latest_df['doc_name'] == project]
-        values = project_metrics['value'].tolist()
-        matrix_data.append({
-            "name": project,
-            "value": values,
-            "height": 20
-        })
-    
-    # Get all unique metrics for the legend
     all_metrics = latest_df['metric'].unique().tolist()
+    
+    # Build y-axis categories and data
+    y_axis_data = []
+    chart_data = []
+    colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4']
+    
+    for project in projects:
+        project_metrics = latest_df[latest_df['doc_name'] == project]
+        for metric in all_metrics:
+            metric_data = project_metrics[project_metrics['metric'] == metric]
+            if not metric_data.empty:
+                value = metric_data['value'].iloc[0]
+                y_axis_data.append(f"{project}")
+                chart_data.append({
+                    "value": value,
+                    "itemStyle": {"color": colors[all_metrics.index(metric) % len(colors)]},
+                    "label": {"show": True, "position": "right", "formatter": f"{value:.1f}"}
+                })
     
     # Create matrix mini bar chart option
     matrix_option = {
         "tooltip": {
             "trigger": "axis",
-            "axisPointer": {"type": "shadow"},
-            "formatter": "{b}<br/>{a}: {c}%"
+            "axisPointer": {"type": "shadow"}
         },
         "grid": {
-            "left": "25%",
-            "right": "10%",
-            "top": "5%",
-            "bottom": "5%"
+            "left": "20%",
+            "right": "15%",
+            "top": "3%",
+            "bottom": "3%",
+            "containLabel": True
         },
         "xAxis": {
             "type": "value",
             "max": 100,
-            "splitLine": {"show": False},
             "axisLabel": {"formatter": "{value}%"}
         },
         "yAxis": {
             "type": "category",
-            "data": projects,
+            "data": y_axis_data,
             "axisLine": {"show": False},
             "axisTick": {"show": False},
-            "splitLine": {"show": False}
+            "splitLine": {"show": True, "lineStyle": {"color": "#f0f0f0"}}
         },
-        "series": []
-    }
-    
-    # Add a series for each metric
-    for metric_idx, metric in enumerate(all_metrics):
-        series_data = []
-        for project_idx, project in enumerate(projects):
-            project_metric = latest_df[(latest_df['doc_name'] == project) & (latest_df['metric'] == metric)]
-            if not project_metric.empty:
-                value = project_metric['value'].iloc[0]
-                series_data.append([value, project_idx])
-            else:
-                series_data.append([0, project_idx])
-        
-        matrix_option["series"].append({
-            "name": metric,
+        "series": [{
             "type": "bar",
-            "stack": "total",
-            "data": series_data,
+            "data": chart_data,
+            "barMaxWidth": 20,
             "label": {
                 "show": True,
-                "position": "inside",
-                "formatter": "{c}%",
-                "fontSize": 10
+                "position": "right",
+                "fontSize": 11,
+                "color": "#333"
             }
-        })
-    
-    # Add legend
-    matrix_option["legend"] = {
-        "data": all_metrics,
-        "top": "bottom"
+        }]
     }
     
-    st_echarts(options=matrix_option, height="300px")
+    # Calculate height based on number of bars
+    chart_height = max(300, len(y_axis_data) * 30)
+    st_echarts(options=matrix_option, height=f"{chart_height}px")
     
     st.header("📈 Progress Over Time")
     
