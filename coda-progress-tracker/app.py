@@ -287,27 +287,45 @@ else:
     # Matrix Mini Bar Chart - Project Overview
     st.header("📊 Project Progress Overview")
     
-    # Prepare data for matrix chart - create y-axis categories for each project-metric combination
+    # Prepare data for matrix chart
     projects = latest_df['doc_name'].unique().tolist()
     all_metrics = latest_df['metric'].unique().tolist()
     
-    # Build y-axis categories and data
-    y_axis_data = []
-    chart_data = []
+    # Define colors for each metric
     colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4']
     
-    for project in projects:
-        project_metrics = latest_df[latest_df['doc_name'] == project]
-        for metric in all_metrics:
-            metric_data = project_metrics[project_metrics['metric'] == metric]
-            if not metric_data.empty:
-                value = metric_data['value'].iloc[0]
-                y_axis_data.append(f"{project}")
-                chart_data.append({
-                    "value": value,
-                    "itemStyle": {"color": colors[all_metrics.index(metric) % len(colors)]},
-                    "label": {"show": True, "position": "right", "formatter": f"{value:.1f}"}
-                })
+    # Build y-axis with project names (no repetition) and series data for each metric
+    y_axis_data = []
+    series_list = []
+    
+    # Create a series for each metric
+    for metric_idx, metric in enumerate(all_metrics):
+        metric_data = []
+        for project in projects:
+            project_metric = latest_df[(latest_df['doc_name'] == project) & (latest_df['metric'] == metric)]
+            if not project_metric.empty:
+                value = project_metric['value'].iloc[0]
+                metric_data.append(value)
+            else:
+                metric_data.append(0)
+        
+        series_list.append({
+            "name": metric,
+            "type": "bar",
+            "data": metric_data,
+            "itemStyle": {"color": colors[metric_idx % len(colors)]},
+            "label": {
+                "show": True,
+                "position": "right",
+                "formatter": "{c}",
+                "fontSize": 11,
+                "color": "#333"
+            },
+            "barMaxWidth": 20
+        })
+    
+    # Y-axis is just project names (no repetition)
+    y_axis_data = projects
     
     # Create matrix mini bar chart option
     matrix_option = {
@@ -315,11 +333,16 @@ else:
             "trigger": "axis",
             "axisPointer": {"type": "shadow"}
         },
+        "legend": {
+            "data": all_metrics,
+            "top": "bottom",
+            "textStyle": {"fontSize": 12}
+        },
         "grid": {
-            "left": "20%",
-            "right": "15%",
+            "left": "25%",
+            "right": "10%",
             "top": "3%",
-            "bottom": "3%",
+            "bottom": "12%",
             "containLabel": True
         },
         "xAxis": {
@@ -334,21 +357,11 @@ else:
             "axisTick": {"show": False},
             "splitLine": {"show": True, "lineStyle": {"color": "#f0f0f0"}}
         },
-        "series": [{
-            "type": "bar",
-            "data": chart_data,
-            "barMaxWidth": 20,
-            "label": {
-                "show": True,
-                "position": "right",
-                "fontSize": 11,
-                "color": "#333"
-            }
-        }]
+        "series": series_list
     }
     
-    # Calculate height based on number of bars
-    chart_height = max(300, len(y_axis_data) * 30)
+    # Calculate height based on number of projects and metrics
+    chart_height = max(300, len(projects) * len(all_metrics) * 25)
     st_echarts(options=matrix_option, height=f"{chart_height}px")
     
     st.header("📈 Progress Over Time")
