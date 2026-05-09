@@ -306,8 +306,9 @@ else:
     # Create matrix mini bar chart option
     matrix_option = {
         "tooltip": {
-            "trigger": "item",
-            "formatter": lambda params: f"{params['name']}: {params['value']}%"
+            "trigger": "axis",
+            "axisPointer": {"type": "shadow"},
+            "formatter": "{b}<br/>{a}: {c}%"
         },
         "grid": {
             "left": "25%",
