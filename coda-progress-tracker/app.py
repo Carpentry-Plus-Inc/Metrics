@@ -3,10 +3,11 @@ import requests
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import os
 from dotenv import load_dotenv
+from streamlit_echarts import st_echarts
 
 # Load environment variables from .env file (local development)
 load_dotenv()
@@ -295,27 +296,28 @@ else:
     if selected_project:
         filtered_df = df[df['doc_name'] == selected_project]
         
-        # Calculate date range: one month centered on most recent data point
-        from datetime import timedelta
-        most_recent_date = filtered_df['timestamp'].max()
-        date_range_start = most_recent_date - timedelta(days=15)
-        date_range_end = most_recent_date + timedelta(days=15)
+        # Prepare data for ECharts
+        metrics = filtered_df['metric'].unique()
+        series_data = []
         
-        fig = px.line(
-            filtered_df,
-            x='timestamp',
-            y='value',
-            color='metric',
-            title=f"Progress Trends - {selected_project}",
-            labels={'value': 'Progress (%)', 'timestamp': 'Date', 'metric': 'Metric'},
-            markers=True
-        )
+        for metric in metrics:
+            metric_df = filtered_df[filtered_df['metric'] == metric].sort_values('timestamp')
+            data_points = [
+                [row['timestamp'].strftime('%Y-%m-%d %H:%M:%S'), row['value']] 
+                for _, row in metric_df.iterrows()
+            ]
+            series_data.append({
+                "name": metric,
+                "type": "line",
+                "smooth": True,
+                "symbol": "circle",
+                "symbolSize": 8,
+                "data": data_points
+            })
         
-        # Set x-axis range to one month centered on most recent data
-        fig.update_xaxes(range=[date_range_start, date_range_end])
-        
-        # Load and add milestone markers
+        # Load milestone markers
         milestones_df = load_milestones()
+        milestone_marks = []
         
         if not milestones_df.empty:
             project_milestones = milestones_df[milestones_df['doc_name'] == selected_project]
@@ -323,68 +325,85 @@ else:
             if not project_milestones.empty:
                 st.info(f"📍 Showing {len(project_milestones)} milestone markers for {selected_project}")
                 
-                # Add vertical lines for milestone dates
-                for idx, milestone in project_milestones.iterrows():
+                for _, milestone in project_milestones.iterrows():
                     if pd.notna(milestone.get('start_date')):
-                        # Convert to datetime object
-                        start_date = pd.to_datetime(milestone['start_date']).to_pydatetime()
-                        # Add vertical line for start date
-                        fig.add_shape(
-                            type="line",
-                            x0=start_date, x1=start_date,
-                            y0=0, y1=1,
-                            yref="paper",
-                            line=dict(color="green", width=2, dash="dash"),
-                            opacity=0.7
-                        )
-                        # Add annotation for start date
-                        fig.add_annotation(
-                            x=start_date,
-                            y=1,
-                            yref="paper",
-                            text=f"▶ {milestone['phase']}",
-                            showarrow=False,
-                            yshift=10,
-                            font=dict(size=9, color="green")
-                        )
+                        start_date = pd.to_datetime(milestone['start_date']).strftime('%Y-%m-%d')
+                        milestone_marks.append({
+                            "xAxis": start_date,
+                            "lineStyle": {"color": "#10b981", "type": "dashed", "width": 2},
+                            "label": {"formatter": f"▶ {milestone['phase']}", "position": "insideStartTop"}
+                        })
                     
                     if pd.notna(milestone.get('end_date')):
-                        # Convert to datetime object
-                        end_date = pd.to_datetime(milestone['end_date']).to_pydatetime()
-                        # Add vertical line for end date
-                        fig.add_shape(
-                            type="line",
-                            x0=end_date, x1=end_date,
-                            y0=0, y1=1,
-                            yref="paper",
-                            line=dict(color="red", width=2, dash="dot"),
-                            opacity=0.7
-                        )
-                        # Add annotation for end date
-                        fig.add_annotation(
-                            x=end_date,
-                            y=0,
-                            yref="paper",
-                            text=f"◀ {milestone['phase']}",
-                            showarrow=False,
-                            yshift=-10,
-                            font=dict(size=9, color="red")
-                        )
-            else:
-                st.warning(f"No milestones found for {selected_project}")
-        else:
-            st.warning("No milestone data available. Run fetch_data.py to fetch milestones.")
+                        end_date = pd.to_datetime(milestone['end_date']).strftime('%Y-%m-%d')
+                        milestone_marks.append({
+                            "xAxis": end_date,
+                            "lineStyle": {"color": "#ef4444", "type": "dotted", "width": 2},
+                            "label": {"formatter": f"◀ {milestone['phase']}", "position": "insideEndBottom"}
+                        })
         
-        fig.update_yaxes(range=[0, 100], fixedrange=False, autorange=False)
-        fig.update_layout(height=500, legend=dict(
-            orientation="v",
-            yanchor="top",
-            y=1,
-            xanchor="left",
-            x=1.02
-        ))
+        # ECharts option configuration
+        option = {
+            "title": {
+                "text": f"Progress Trends - {selected_project}",
+                "left": "center",
+                "textStyle": {"fontSize": 20}
+            },
+            "tooltip": {
+                "trigger": "axis",
+                "axisPointer": {"type": "cross"}
+            },
+            "legend": {
+                "data": list(metrics),
+                "top": 40,
+                "right": 20
+            },
+            "grid": {
+                "left": "3%",
+                "right": "4%",
+                "bottom": "15%",
+                "containLabel": True
+            },
+            "toolbox": {
+                "feature": {
+                    "dataZoom": {"yAxisIndex": "none"},
+                    "restore": {},
+                    "saveAsImage": {}
+                }
+            },
+            "xAxis": {
+                "type": "time",
+                "boundaryGap": False,
+                "axisLabel": {"rotate": 45}
+            },
+            "yAxis": {
+                "type": "value",
+                "min": 0,
+                "max": 100,
+                "axisLabel": {"formatter": "{value}%"}
+            },
+            "dataZoom": [
+                {
+                    "type": "slider",
+                    "start": 0,
+                    "end": 100,
+                    "height": 30,
+                    "bottom": 10
+                },
+                {
+                    "type": "inside",
+                    "start": 0,
+                    "end": 100
+                }
+            ],
+            "series": series_data,
+            "markLine": {
+                "data": milestone_marks,
+                "symbol": "none"
+            } if milestone_marks else {}
+        }
         
-        st.plotly_chart(fig, use_container_width=True)
+        st_echarts(options=option, height="600px")
     
     st.header("📅 Historical Data")
     
