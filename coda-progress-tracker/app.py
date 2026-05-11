@@ -191,13 +191,17 @@ def load_milestones():
     """Load milestone data"""
     milestones_file = "milestones.csv"
     if os.path.exists(milestones_file):
-        df = pd.read_csv(milestones_file)
-        # Convert date columns to datetime
-        if 'start_date' in df.columns:
-            df['start_date'] = pd.to_datetime(df['start_date'], errors='coerce')
-        if 'end_date' in df.columns:
-            df['end_date'] = pd.to_datetime(df['end_date'], errors='coerce')
-        return df
+        try:
+            df = pd.read_csv(milestones_file)
+            # Convert date columns to datetime with robust error handling
+            if 'start_date' in df.columns and not df.empty:
+                df['start_date'] = pd.to_datetime(df['start_date'], errors='coerce', utc=True)
+            if 'end_date' in df.columns and not df.empty:
+                df['end_date'] = pd.to_datetime(df['end_date'], errors='coerce', utc=True)
+            return df
+        except Exception as e:
+            st.warning(f"Error loading milestones: {str(e)}")
+            return pd.DataFrame()
     return pd.DataFrame()
 
 with st.sidebar:
