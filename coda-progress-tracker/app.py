@@ -367,6 +367,16 @@ with st.sidebar:
                     st.rerun()
                 else:
                     st.warning("No data found")
+    
+    st.divider()
+    
+    if st.button("🗑️ Clear All Historical Data", type="secondary"):
+        if os.path.exists(DATA_FILE):
+            os.remove(DATA_FILE)
+        if os.path.exists("milestones.csv"):
+            os.remove("milestones.csv")
+        st.success("✅ All historical data cleared!")
+        st.rerun()
 
 st.header("📈 Current Progress")
 
