@@ -6,7 +6,8 @@ A Streamlit dashboard for tracking and visualizing progress metrics from multipl
 
 ## Features
 
-- 📊 Fetch progress formulas from multiple Coda docs via API
+- � **Auto-discover docs by folder** - Automatically track all docs in a specific Coda folder (e.g., "CPI ACTIVE")
+- �📊 Fetch progress formulas from multiple Coda docs via API
 - 📈 Track historical progress data over time
 - 📉 Interactive charts and visualizations
 - 💾 Automatic CSV storage of historical data
@@ -27,14 +28,28 @@ pip install -r requirements.txt
 3. Generate a new API token
 4. Copy the token (you'll need it for the app)
 
-### 3. Find Your Doc IDs
+### 3. Configure Doc Discovery
 
-Your Coda doc ID is in the URL:
-```
-https://coda.io/d/_dABCDEFGH/...
-                  ^^^^^^^^^^
-                  This is your doc ID
-```
+You have two options:
+
+**Option A: Auto-discover by Folder (Recommended)**
+1. Set your folder name in `.streamlit/secrets.toml`:
+   ```toml
+   FOLDER_NAME = "CPI ACTIVE"
+   ```
+2. The app will automatically find and track all docs in that folder
+
+**Option B: Manual Doc IDs**
+1. Find your Coda doc ID in the URL:
+   ```
+   https://coda.io/d/_dABCDEFGH/...
+                     ^^^^^^^^^^
+                     This is your doc ID
+   ```
+2. Add them to `.streamlit/secrets.toml`:
+   ```toml
+   DOC_IDS = "doc1,doc2,doc3"
+   ```
 
 ## Usage
 
@@ -46,7 +61,9 @@ streamlit run app.py
 
 Then:
 1. Enter your Coda API token in the sidebar
-2. Enter your doc IDs (one per line)
+2. Choose your doc discovery method:
+   - **By Folder Name**: Enter "CPI ACTIVE" (or your folder name) and click "Find Folder & List Docs"
+   - **Manual Doc IDs**: Enter doc IDs one per line
 3. Click "Fetch Latest Data"
 4. View your progress dashboard!
 
@@ -74,13 +91,18 @@ This will automatically fetch and store progress data daily.
 
 ## How It Works
 
-1. **Formulas in Coda**: Create formulas in your Coda docs that calculate progress metrics (e.g., `Average([Hardware progress].[Progress])`)
+1. **Folder Discovery** (Optional): The app uses the Coda API to:
+   - List all folders in your workspace
+   - Find the folder matching your specified name (e.g., "CPI ACTIVE")
+   - Automatically get all docs within that folder
 
-2. **API Fetch**: The script fetches all formulas containing "progress" in their name from your specified docs
+2. **Formulas in Coda**: Create formulas in your Coda docs that calculate progress metrics (e.g., `Average([Hardware progress].[Progress])`)
 
-3. **Historical Storage**: Each fetch appends data to `progress_history.csv` with a timestamp
+3. **API Fetch**: The script fetches all formulas containing "progress" in their name from your specified docs
 
-4. **Visualization**: The Streamlit app reads the CSV and creates interactive charts showing progress over time
+4. **Historical Storage**: Each fetch appends data to `progress_history.csv` with a timestamp
+
+5. **Visualization**: The Streamlit app reads the CSV and creates interactive charts showing progress over time
 
 ## Data Format
 
@@ -93,6 +115,7 @@ The app stores data in CSV format:
 
 ## Tips
 
+- **Folder-based tracking**: When you add new docs to the "CPI ACTIVE" folder, they'll automatically be included in the next fetch
 - Make sure your Coda formulas have "progress" in their name so they're automatically detected
 - The app tracks changes over time, so run it daily to build historical data
 - You can manually edit `progress_history.csv` if needed

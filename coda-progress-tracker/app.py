@@ -26,6 +26,52 @@ st.title("📊 Coda Project Progress Dashboard")
 
 DATA_FILE = "progress_history.csv"
 
+def list_folders(api_token, workspace_id=None):
+    """List all folders, optionally filtered by workspace"""
+    headers = {'Authorization': f'Bearer {api_token}'}
+    
+    try:
+        params = {}
+        if workspace_id:
+            params['workspaceId'] = workspace_id
+        
+        response = requests.get(
+            'https://coda.io/apis/v1/folders',
+            headers=headers,
+            params=params
+        )
+        
+        if response.status_code == 200:
+            return response.json().get('items', [])
+        else:
+            st.error(f"Error listing folders: {response.status_code} - {response.text}")
+            return []
+    except Exception as e:
+        st.error(f"Error listing folders: {str(e)}")
+        return []
+
+def get_docs_in_folder(folder_id, api_token):
+    """Get all docs in a specific folder"""
+    headers = {'Authorization': f'Bearer {api_token}'}
+    
+    try:
+        params = {'folderId': folder_id}
+        
+        response = requests.get(
+            'https://coda.io/apis/v1/docs',
+            headers=headers,
+            params=params
+        )
+        
+        if response.status_code == 200:
+            return response.json().get('items', [])
+        else:
+            st.error(f"Error getting docs in folder: {response.status_code} - {response.text}")
+            return []
+    except Exception as e:
+        st.error(f"Error getting docs in folder: {str(e)}")
+        return []
+
 def fetch_coda_milestones(doc_id, api_token):
     """Fetch milestone data from Project Milestones table in a Coda doc"""
     headers = {'Authorization': f'Bearer {api_token}'}
@@ -209,6 +255,7 @@ with st.sidebar:
     
     env_api_token = get_config('CODA_API_TOKEN', '')
     env_doc_ids = get_config('DOC_IDS', '')
+    env_folder_name = get_config('FOLDER_NAME', 'CPI ACTIVE')
     
     api_token = st.text_input(
         "Coda API Token", 
@@ -217,16 +264,73 @@ with st.sidebar:
         help="Get your API token from Coda Account Settings or set in .env file"
     )
     
-    st.subheader("Document IDs")
-    default_doc_ids = env_doc_ids.replace(',', '\n') if env_doc_ids else ''
-    doc_ids_input = st.text_area(
-        "Enter Doc IDs (one per line)",
-        value=default_doc_ids,
-        help="Find doc ID in the URL: coda.io/d/_d{DOC_ID} or set in .env file",
-        height=150
+    st.subheader("📁 Doc Discovery Method")
+    discovery_method = st.radio(
+        "How to find docs:",
+        ["By Folder Name", "Manual Doc IDs"],
+        index=0,
+        help="Choose to auto-discover docs in a folder or manually enter doc IDs"
     )
     
-    doc_ids = [doc_id.strip() for doc_id in doc_ids_input.split('\n') if doc_id.strip()]
+    if discovery_method == "By Folder Name":
+        folder_name = st.text_input(
+            "Folder Name",
+            value=env_folder_name,
+            help="Enter the exact folder name (e.g., 'CPI ACTIVE')"
+        )
+        
+        if st.button("🔍 Find Folder & List Docs", type="secondary"):
+            if not api_token:
+                st.error("Please enter your Coda API token")
+            elif not folder_name:
+                st.error("Please enter a folder name")
+            else:
+                with st.spinner(f"Searching for folder '{folder_name}'..."):
+                    folders = list_folders(api_token)
+                    
+                    matching_folder = None
+                    for folder in folders:
+                        if folder.get('name', '').strip().lower() == folder_name.strip().lower():
+                            matching_folder = folder
+                            break
+                    
+                    if matching_folder:
+                        folder_id = matching_folder['id']
+                        st.success(f"✅ Found folder: {matching_folder['name']}")
+                        
+                        docs = get_docs_in_folder(folder_id, api_token)
+                        
+                        if docs:
+                            st.info(f"📄 Found {len(docs)} docs in this folder:")
+                            for doc in docs:
+                                st.write(f"- {doc.get('name', 'Unknown')} (ID: {doc.get('id', 'N/A')})")
+                            
+                            st.session_state['discovered_docs'] = docs
+                            st.session_state['folder_id'] = folder_id
+                        else:
+                            st.warning("No docs found in this folder")
+                    else:
+                        st.error(f"❌ Folder '{folder_name}' not found")
+                        st.info("Available folders:")
+                        for folder in folders:
+                            st.write(f"- {folder.get('name', 'Unknown')}")
+        
+        doc_ids = []
+        if 'discovered_docs' in st.session_state:
+            doc_ids = [doc['id'] for doc in st.session_state['discovered_docs']]
+            st.success(f"Using {len(doc_ids)} docs from folder")
+    
+    else:
+        st.subheader("Document IDs")
+        default_doc_ids = env_doc_ids.replace(',', '\n') if env_doc_ids else ''
+        doc_ids_input = st.text_area(
+            "Enter Doc IDs (one per line)",
+            value=default_doc_ids,
+            help="Find doc ID in the URL: coda.io/d/_d{DOC_ID} or set in .env file",
+            height=150
+        )
+        
+        doc_ids = [doc_id.strip() for doc_id in doc_ids_input.split('\n') if doc_id.strip()]
     
     if st.button("🔄 Fetch Latest Data", type="primary"):
         if not api_token:
