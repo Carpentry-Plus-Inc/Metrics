@@ -1,9 +1,13 @@
-import requests
 import pandas as pd
-from datetime import datetime
 import os
 import sys
 from dotenv import load_dotenv
+
+PLUGIN_RESOURCES_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "cpi-timber-plugin", "CPI_TIMBER"))
+if PLUGIN_RESOURCES_PATH not in sys.path:
+    sys.path.append(PLUGIN_RESOURCES_PATH)
+
+from resources.cpi_coda import CodaClient, CodaError
 
 load_dotenv()
 
@@ -12,138 +16,19 @@ MILESTONES_FILE = "milestones.csv"
 
 def fetch_coda_milestones(doc_id, api_token):
     """Fetch milestone data from Project Milestones table in a Coda doc"""
-    headers = {'Authorization': f'Bearer {api_token}'}
-    
     try:
-        # Get doc name
-        doc_response = requests.get(
-            f'https://coda.io/apis/v1/docs/{doc_id}',
-            headers=headers
-        )
-        doc_name = doc_response.json().get('name', 'Unknown Doc')
-        
-        # List all tables to find Project Milestones
-        tables_response = requests.get(
-            f'https://coda.io/apis/v1/docs/{doc_id}/tables',
-            headers=headers
-        )
-        
-        tables = tables_response.json().get('items', [])
-        milestone_table = None
-        
-        # Find the Project Milestones table
-        for table in tables:
-            if 'milestone' in table['name'].lower():
-                milestone_table = table
-                break
-        
-        if not milestone_table:
-            print(f"  No Project Milestones table found in {doc_name}")
-            return []
-        
-        table_id = milestone_table['id']
-        
-        # Fetch rows from the milestones table
-        rows_response = requests.get(
-            f'https://coda.io/apis/v1/docs/{doc_id}/tables/{table_id}/rows',
-            headers=headers
-        )
-        
-        rows = rows_response.json().get('items', [])
-        
-        milestones = []
-        for row in rows:
-            # Phase name is in the row's 'name' field
-            phase = row.get('name', 'Unknown Phase')
-            
-            values = row.get('values', {})
-            
-            # Extract start date and end date from values
-            # Values are keyed by column IDs, we need to find date columns
-            start_date = None
-            end_date = None
-            
-            # Get all values as a list to find dates
-            for col_id, value in values.items():
-                # Skip if it's a complex object (like row reference)
-                if isinstance(value, dict) and '@type' in value:
-                    continue
-                
-                # Check if it's a date string (ISO format)
-                if isinstance(value, str) and 'T' in value and ':' in value:
-                    # First date found is likely start date
-                    if start_date is None:
-                        start_date = value
-                    # Second date found is likely end date
-                    elif end_date is None:
-                        end_date = value
-            
-            if phase and (start_date or end_date):
-                milestones.append({
-                    'doc_name': doc_name,
-                    'phase': phase,
-                    'start_date': start_date,
-                    'end_date': end_date
-                })
-        
+        milestones = CodaClient(api_token).fetch_milestones(doc_id)
         print(f"  Found {len(milestones)} milestones")
         return milestones
-        
-    except Exception as e:
+    except CodaError as e:
         print(f"Error fetching milestones from doc {doc_id}: {str(e)}")
         return []
 
 def fetch_coda_formulas(doc_id, api_token):
     """Fetch all formulas from a Coda doc"""
-    headers = {'Authorization': f'Bearer {api_token}'}
-    
     try:
-        doc_response = requests.get(
-            f'https://coda.io/apis/v1/docs/{doc_id}',
-            headers=headers
-        )
-        doc_name = doc_response.json().get('name', 'Unknown Doc')
-        
-        formulas_response = requests.get(
-            f'https://coda.io/apis/v1/docs/{doc_id}/formulas',
-            headers=headers
-        )
-        
-        formulas = formulas_response.json().get('items', [])
-        
-        results = []
-        for formula in formulas:
-            if 'progress' in formula['name'].lower():
-                formula_id = formula['id']
-                
-                formula_detail_response = requests.get(
-                    f'https://coda.io/apis/v1/docs/{doc_id}/formulas/{formula_id}',
-                    headers=headers
-                )
-                
-                formula_detail = formula_detail_response.json()
-                
-                # Extract value and parse if it's a string
-                raw_value = formula_detail.get('value', 0)
-                
-                # If value is a string like "Hardware progress :48.4375", extract the number
-                if isinstance(raw_value, str):
-                    # Try to extract number from string
-                    import re
-                    numbers = re.findall(r'[-+]?\d*\.?\d+', raw_value)
-                    value = float(numbers[-1]) if numbers else 0
-                else:
-                    value = raw_value
-                
-                results.append({
-                    'doc_name': doc_name,
-                    'metric': formula_detail.get('name', 'Unknown'),
-                    'value': value,
-                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                })
-        
-        return results
-    except Exception as e:
+        return CodaClient(api_token).fetch_progress_formulas(doc_id)
+    except CodaError as e:
         print(f"Error fetching from doc {doc_id}: {str(e)}")
         return []
 

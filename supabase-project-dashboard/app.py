@@ -33,33 +33,16 @@ st.set_page_config(
 supabase_url = get_config('SUPABASE_URL', '')
 supabase_key = get_config('SUPABASE_KEY', '')
 
-# Sidebar configuration (collapsed by default when credentials exist)
-has_config = bool(supabase_url and supabase_key)
-with st.sidebar.expander("⚙️ Configuration", expanded=not has_config):
-    supabase_url = st.text_input(
-        "Supabase URL",
-        value=supabase_url,
-        help="Your Supabase project URL"
-    )
-    supabase_key = st.text_input(
-        "Supabase Anon Key",
-        type="password",
-        value=supabase_key,
-        help="Your Supabase anon/public key"
-    )
-
-if has_config:
-    st.sidebar.success("✅ Credentials loaded from .env")
+# Configuration is loaded from .env or .streamlit/secrets.toml
 
 # Main app logic
 if not supabase_url or not supabase_key:
-    st.warning("⚠️ Please enter your Supabase credentials in the sidebar to continue.")
+    st.warning("⚠️ Please set your Supabase credentials in .streamlit/secrets.toml or the .env file.")
     st.info("You can find these credentials in your Supabase project API settings.")
 else:
     # Initialize Supabase client
     try:
         supabase = get_supabase_client(supabase_url, supabase_key)
-        st.sidebar.success("✅ Connected to Supabase")
     except Exception as e:
         st.error(f"❌ Failed to connect to Supabase: {str(e)}")
         st.stop()
